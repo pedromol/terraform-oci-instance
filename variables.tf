@@ -43,6 +43,18 @@ variable "prefix_display_name" {
   type        = string
 }
 
+variable "ingress_allowed_tcp" {
+  description = "List of allowed TCP ingress ports"
+  type        = list(number)
+  default     = [22, 443, 80]
+}
+
+variable "ingress_allowed_udp" {
+  description = "List of allowed UDP ingress ports"
+  type        = list(number)
+  default     = [51820, 20560, 27015, 7777, 8080]
+}
+
 variable "vcn_cidr_block" {
   description = "IPv4 CIDR block associated with the VCN."
   type        = string
@@ -57,21 +69,44 @@ variable "availability_domain_number" {
 
 variable "instance_shape" {
   description = "The shape of the instance. The shape determines the number of CPUs and the amount of memory allocated to the instance."
-  type        = string
-  default     = "VM.Standard.E2.1.Micro"
+  type        = list(string)
+  default     = ["VM.Standard.A1.Flex", "VM.Standard.E2.1.Micro", "VM.Standard.E2.1.Micro"]
+}
+
+variable "instance_shape_config" {
+  description = "Custom shape configuration."
+  type = list(object({
+    memory_in_gbs = number,
+    ocpus         = number
+  }))
+  default = [{
+    memory_in_gbs = 24
+    ocpus         = 4
+    },
+    {
+      memory_in_gbs = 1
+      ocpus         = 1
+    },
+    {
+      memory_in_gbs = 1
+      ocpus         = 1
+    }
+  ]
 }
 
 variable "instance_image_ocid" {
   description = "Image OCID. List available: https://docs.cloud.oracle.com/en-us/iaas/images/image/cc81a889-bc7f-4b70-b8e7-0503812665be/"
-  type        = map(string)
+  type        = list(string)
 
-  default = {
-    sa-saopaulo-1 = "ocid1.image.oc1.sa-saopaulo-1.aaaaaaaa43nhxgl7mm57gssiqc4ajotp6awanjxn2m2cbju7qyic6cm3rtsq"
-  }
+  default = [
+    "ocid1.image.oc1.sa-saopaulo-1.aaaaaaaawohyyavvqh2xxi44dwsu2ysqamht2yj54hynxv2bdhltdby6i7xq",
+    "ocid1.image.oc1.sa-saopaulo-1.aaaaaaaa43nhxgl7mm57gssiqc4ajotp6awanjxn2m2cbju7qyic6cm3rtsq",
+    "ocid1.image.oc1.sa-saopaulo-1.aaaaaaaa43nhxgl7mm57gssiqc4ajotp6awanjxn2m2cbju7qyic6cm3rtsq"
+  ]
 }
 
 variable "instance_count" {
-  description = "Number of instances to spawn"
+  description = "Number of instances to create"
   type        = number
-  default     = 2
+  default     = 3
 }

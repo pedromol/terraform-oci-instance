@@ -14,6 +14,7 @@ resource "oci_core_vcn" "vcn" {
 }
 
 resource "oci_core_subnet" "subnet" {
+  depends_on          = [oci_core_security_list.security_list, oci_core_vcn.vcn]
   availability_domain = data.oci_identity_availability_domain.ad.name
   cidr_block          = var.vcn_cidr_block
   display_name        = "${var.prefix_display_name} Subnet"
@@ -26,12 +27,14 @@ resource "oci_core_subnet" "subnet" {
 }
 
 resource "oci_core_internet_gateway" "internet_gateway" {
+  depends_on     = [oci_core_vcn.vcn]
   compartment_id = var.compartment_ocid
   display_name   = "${var.prefix_display_name} Internet Gateway"
   vcn_id         = oci_core_vcn.vcn.id
 }
 
 resource "oci_core_default_route_table" "route_table" {
+  depends_on                 = [oci_core_vcn.vcn, oci_core_internet_gateway.internet_gateway]
   display_name               = "${var.prefix_display_name} Route Table"
   manage_default_resource_id = oci_core_vcn.vcn.default_route_table_id
 
@@ -43,6 +46,7 @@ resource "oci_core_default_route_table" "route_table" {
 }
 
 resource "oci_core_security_list" "security_list" {
+  depends_on     = [oci_core_vcn.vcn]
   compartment_id = var.compartment_ocid
   vcn_id         = oci_core_vcn.vcn.id
   display_name   = "${var.prefix_display_name} Security List"
@@ -54,138 +58,45 @@ resource "oci_core_security_list" "security_list" {
   }
 
   // Protocol: 6 = TCP, 17 = UDP
-  ingress_security_rules {
-    description = "${var.prefix_display_name} Inbound TCP 22"
-    protocol    = "6"
-    source      = "0.0.0.0/0"
-    stateless   = false
+  dynamic "ingress_security_rules" {
+    iterator = rule
+    for_each = toset(var.ingress_allowed_tcp)
+    content {
+      description = "${var.prefix_display_name} Inbound TCP ${rule.value}"
+      protocol    = "6"
+      source      = "0.0.0.0/0"
+      stateless   = false
 
-    tcp_options {
-      source_port_range {
-        min = 1
-        max = 65535
+      tcp_options {
+        source_port_range {
+          min = 1
+          max = 65535
+        }
+
+        min = rule.value
+        max = rule.value
       }
-
-      min = 22
-      max = 22
     }
   }
 
-  ingress_security_rules {
-    description = "${var.prefix_display_name} Inbound TCP 443"
-    protocol    = "6"
-    source      = "0.0.0.0/0"
-    stateless   = false
+  dynamic "ingress_security_rules" {
+    iterator = rule
+    for_each = toset(var.ingress_allowed_udp)
+    content {
+      description = "${var.prefix_display_name} Inbound UDP ${rule.value}"
+      protocol    = "17"
+      source      = "0.0.0.0/0"
+      stateless   = false
 
-    tcp_options {
-      source_port_range {
-        min = 1
-        max = 65535
+      udp_options {
+        source_port_range {
+          min = 1
+          max = 65535
+        }
+
+        min = rule.value
+        max = rule.value
       }
-
-      min = 443
-      max = 443
-    }
-  }
-
-  ingress_security_rules {
-    description = "${var.prefix_display_name} Inbound TCP 80"
-    protocol    = "6"
-    source      = "0.0.0.0/0"
-    stateless   = false
-
-    tcp_options {
-      source_port_range {
-        min = 1
-        max = 65535
-      }
-      min = 80
-      max = 80
-    }
-  }
-
-  ingress_security_rules {
-    description = "${var.prefix_display_name} Inbound UDP 51820"
-    protocol    = "17"
-    source      = "0.0.0.0/0"
-    stateless   = false
-
-    udp_options {
-      source_port_range {
-        min = 1
-        max = 65535
-      }
-
-      min = 51820
-      max = 51820
-    }
-  }
-
-  ingress_security_rules {
-    description = "${var.prefix_display_name} Inbound UDP 20560"
-    protocol    = "17"
-    source      = "0.0.0.0/0"
-    stateless   = false
-
-    udp_options {
-      source_port_range {
-        min = 1
-        max = 65535
-      }
-
-      min = 20560
-      max = 20560
-    }
-  }
-
-  ingress_security_rules {
-    description = "${var.prefix_display_name} Inbound UDP 27015"
-    protocol    = "17"
-    source      = "0.0.0.0/0"
-    stateless   = false
-
-    udp_options {
-      source_port_range {
-        min = 1
-        max = 65535
-      }
-
-      min = 27015
-      max = 27015
-    }
-  }
-
-  ingress_security_rules {
-    description = "${var.prefix_display_name} Inbound UDP 7777"
-    protocol    = "17"
-    source      = "0.0.0.0/0"
-    stateless   = false
-
-    udp_options {
-      source_port_range {
-        min = 1
-        max = 65535
-      }
-
-      min = 7777
-      max = 7777
-    }
-  }
-
-    ingress_security_rules {
-    description = "${var.prefix_display_name} Inbound UDP 8080"
-    protocol    = "17"
-    source      = "0.0.0.0/0"
-    stateless   = false
-
-    udp_options {
-      source_port_range {
-        min = 1
-        max = 65535
-      }
-
-      min = 8080
-      max = 8080
     }
   }
 
@@ -203,12 +114,18 @@ resource "oci_core_security_list" "security_list" {
 }
 
 resource "oci_core_instance" "instance" {
-  count = var.instance_count
+  depends_on = [oci_core_subnet.subnet]
+  count      = var.instance_count
 
   availability_domain = data.oci_identity_availability_domain.ad.name
   compartment_id      = var.compartment_ocid
   display_name        = "${var.prefix_display_name} Instance ${count.index}"
-  shape               = var.instance_shape
+  shape               = var.instance_shape[count.index]
+
+  shape_config {
+    ocpus         = var.instance_shape_config[count.index].ocpus
+    memory_in_gbs = var.instance_shape_config[count.index].memory_in_gbs
+  }
 
   create_vnic_details {
     subnet_id        = oci_core_subnet.subnet.id
@@ -219,11 +136,21 @@ resource "oci_core_instance" "instance" {
 
   source_details {
     source_type = "image"
-    source_id   = var.instance_image_ocid[var.region]
+    source_id   = var.instance_image_ocid[count.index]
   }
 
   metadata = {
-    ssh_authorized_keys = var.ssh_public_key
+    ssh_authorized_keys = file(var.ssh_public_key)
+  }
+
+  agent_config {
+    are_all_plugins_disabled = false
+    is_management_disabled   = false
+    is_monitoring_disabled   = false
+    plugins_config {
+      name          = "Compute Instance Monitoring"
+      desired_state = "ENABLED"
+    }
   }
 
   timeouts {
