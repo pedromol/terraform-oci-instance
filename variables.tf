@@ -31,6 +31,16 @@ variable "user_ocid" {
   type        = string
 }
 
+variable "cloudflare_api_token" {
+  description = "The Cloudflare API token."
+  type        = string
+}
+
+variable "cloudflare_zone_id" {
+  description = "The DNS zone to use."
+  type        = string
+}
+
 variable "region" {
   description = "List available: https://docs.cloud.oracle.com/en-us/iaas/Content/General/Concepts/regions.htm"
   type        = string
@@ -46,13 +56,13 @@ variable "prefix_display_name" {
 variable "ingress_allowed_tcp" {
   description = "List of allowed TCP ingress ports"
   type        = list(number)
-  default     = [22, 443, 80]
+  default     = [22, 443, 80, 300, 3000]
 }
 
 variable "ingress_allowed_udp" {
   description = "List of allowed UDP ingress ports"
   type        = list(number)
-  default     = [51820, 20560, 27015, 7777, 8080]
+  default     = [51820, 20560, 27015, 7777, 8080, 9876, 9877, 27015, 27016]
 }
 
 variable "vcn_cidr_block" {
@@ -67,46 +77,81 @@ variable "availability_domain_number" {
   default     = 1
 }
 
-variable "instance_shape" {
-  description = "The shape of the instance. The shape determines the number of CPUs and the amount of memory allocated to the instance."
-  type        = list(string)
-  default     = ["VM.Standard.A1.Flex", "VM.Standard.E2.1.Micro", "VM.Standard.E2.1.Micro"]
+variable "storage_size_in_gbs" {
+  description = "Size in GBs to attach to first instance"
+  type        = number
+  default     = 55
 }
 
-variable "instance_shape_config" {
+variable "instance_amd_shape" {
+  description = "The shape of the instance. The shape determines the number of CPUs and the amount of memory allocated to the instance."
+  type        = string
+  default     = "VM.Standard.E2.1.Micro"
+}
+
+variable "instance_arm_shape" {
+  description = "The shape of the instance. The shape determines the number of CPUs and the amount of memory allocated to the instance."
+  type        = string
+  default     = "VM.Standard.A1.Flex"
+}
+
+variable "instance_amd_shape_config" {
   description = "Custom shape configuration."
-  type = list(object({
+  type = object({
     memory_in_gbs = number,
     ocpus         = number
-  }))
-  default = [{
+  })
+  default = {
+    memory_in_gbs = 1
+    ocpus         = 1
+  }
+}
+
+variable "instance_arm_shape_config" {
+  description = "Custom shape configuration."
+  type = object({
+    memory_in_gbs = number,
+    ocpus         = number
+  })
+  default = {
     memory_in_gbs = 24
     ocpus         = 4
-    },
-    {
-      memory_in_gbs = 1
-      ocpus         = 1
-    },
-    {
-      memory_in_gbs = 1
-      ocpus         = 1
-    }
-  ]
+  }
 }
 
-variable "instance_image_ocid" {
+variable "instance_amd_image_ocid" {
   description = "Image OCID. List available: https://docs.cloud.oracle.com/en-us/iaas/images/image/cc81a889-bc7f-4b70-b8e7-0503812665be/"
-  type        = list(string)
-
-  default = [
-    "ocid1.image.oc1.sa-saopaulo-1.aaaaaaaawohyyavvqh2xxi44dwsu2ysqamht2yj54hynxv2bdhltdby6i7xq",
-    "ocid1.image.oc1.sa-saopaulo-1.aaaaaaaa43nhxgl7mm57gssiqc4ajotp6awanjxn2m2cbju7qyic6cm3rtsq",
-    "ocid1.image.oc1.sa-saopaulo-1.aaaaaaaa43nhxgl7mm57gssiqc4ajotp6awanjxn2m2cbju7qyic6cm3rtsq"
-  ]
+  type        = string
+  default     = "ocid1.image.oc1.sa-saopaulo-1.aaaaaaaa43nhxgl7mm57gssiqc4ajotp6awanjxn2m2cbju7qyic6cm3rtsq"
 }
 
-variable "instance_count" {
+variable "instance_arm_image_ocid" {
+  description = "Image OCID. List available: https://docs.cloud.oracle.com/en-us/iaas/images/image/cc81a889-bc7f-4b70-b8e7-0503812665be/"
+  type        = string
+  default     = "ocid1.image.oc1.sa-saopaulo-1.aaaaaaaawohyyavvqh2xxi44dwsu2ysqamht2yj54hynxv2bdhltdby6i7xq"
+}
+
+variable "instance_amd_count" {
   description = "Number of instances to create"
   type        = number
-  default     = 3
+  default     = 2
+}
+
+variable "instance_arm_count" {
+  description = "Number of instances to create"
+  type        = number
+  default     = 1
+}
+
+variable "cloudflare_main_names" {
+  description = "The main domain names to use."
+  type        = list(string)
+  default = ["instance", "www", "wireguard", "*", "@"]
+}
+
+variable "cloudflare_instance_name" {
+  description = "The domain name to use on other instances."
+  type        = string
+  default = "instance"
+
 }
